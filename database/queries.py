@@ -2,7 +2,7 @@ import json
 from datetime import datetime, timezone
 
 from postgrest.exceptions import APIError
-from supabase_auth.errors import AuthApiError
+
 
 from config import (
     DEFAULT_COMMUNICATION_GOAL,
@@ -129,7 +129,7 @@ def create_user_account(email, password, full_name):
         profile = ensure_user_profile(created_user_id, email, full_name)
         login_response = public.auth.sign_in_with_password({"email": email, "password": password})
         return _auth_payload(login_response, profile)
-    except AuthApiError as error:
+    except Exception as error:
         if created_user_id:
             try:
                 service.auth.admin.delete_user(created_user_id)
@@ -149,7 +149,7 @@ def authenticate_user(email, password):
     public = create_public_client()
     try:
         auth_response = public.auth.sign_in_with_password({"email": email, "password": password})
-    except AuthApiError as error:
+    except Exception as error:
         raise ValueError(_friendly_auth_error(error)) from error
 
     profile = ensure_user_profile(
