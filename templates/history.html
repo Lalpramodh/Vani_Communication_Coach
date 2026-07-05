@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#FF5A2C">
+    <title>Vani AI | History</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body class="app-page history-page">
+    <a class="skip-link" href="#main-content">Skip to main content</a>
+
+    <div class="app-shell">
+        <button class="nav-toggle" type="button" data-sidebar-toggle aria-label="Open navigation" aria-controls="app-sidebar" aria-expanded="false">
+            <i class="fa-solid fa-bars"></i>
+        </button>
+        <div class="app-backdrop" data-sidebar-dismiss></div>
+
+        <aside class="sidebar" id="app-sidebar">
+            <a class="brand-lockup" href="/dashboard">
+                <span class="brand-lockup__mark">
+                    <i class="fa-solid fa-wave-square" aria-hidden="true"></i>
+                </span>
+                <span>
+                    <strong>Vani AI</strong>
+                    <span>Communication Fitness Coach</span>
+                </span>
+            </a>
+
+            <nav class="sidebar-nav" aria-label="Primary">
+                <a class="sidebar-link" href="/dashboard">
+                    <i class="fa-solid fa-house"></i>
+                    <span>Dashboard</span>
+                </a>
+                <a class="sidebar-link" href="/practice">
+                    <i class="fa-solid fa-comments"></i>
+                    <span>Practice</span>
+                </a>
+                <a class="sidebar-link" href="/report">
+                    <i class="fa-solid fa-file-lines"></i>
+                    <span>Report</span>
+                </a>
+                <a class="sidebar-link is-active" href="/history" aria-current="page">
+                    <i class="fa-solid fa-clock-rotate-left"></i>
+                    <span>History</span>
+                </a>
+            </nav>
+
+            <div class="sidebar-footer">
+                <div class="sidebar-profile">
+                    <div class="sidebar-profile__avatar" data-user-initial>P</div>
+                    <div>
+                        <strong data-user-name>Pramodh</strong>
+                        <span data-user-stage>Building confident, outcome-first answers</span>
+                    </div>
+                </div>
+
+                <div class="sidebar-actions">
+                    <button class="sidebar-action" type="button" data-profile-action>
+                        <i class="fa-regular fa-user"></i>
+                        <span>Profile</span>
+                    </button>
+                    <a class="sidebar-action" href="/logout">
+                        <i class="fa-solid fa-arrow-right-from-bracket"></i>
+                        <span>Logout</span>
+                    </a>
+                </div>
+            </div>
+        </aside>
+
+        <main class="page-shell" id="main-content">
+            <header class="page-header reveal">
+                <div>
+                    <span class="page-kicker">History</span>
+                    <h1>Previous practice sessions</h1>
+                    <p>Search by topic, filter by mode or score band, and jump back into any rep that deserves another try.</p>
+                </div>
+
+                <div class="page-header__actions">
+                    <a class="button button--primary" href="/practice">
+                        <i class="fa-solid fa-play"></i>
+                        <span>Start Practice</span>
+                    </a>
+                </div>
+            </header>
+
+            <section class="panel reveal">
+                <div class="panel__head">
+                    <div>
+                        <span class="eyebrow-label">Session history</span>
+                        <h2>Your completed coaching reps</h2>
+                    </div>
+                    <span class="card-tag" id="historyCountLabel">0 sessions</span>
+                </div>
+
+                <div class="history-toolbar" role="search" aria-label="Filter session history">
+                    <label class="field">
+                        <span class="field__label">Search</span>
+                        <input
+                            class="field__control"
+                            id="historySearch"
+                            name="historySearch"
+                            type="search"
+                            placeholder="Search by mode or summary">
+                    </label>
+
+                    <label class="field">
+                        <span class="field__label">Filter</span>
+                        <select class="field__control" id="historyModeFilter" name="historyModeFilter">
+                            <option value="all">All modes</option>
+                        </select>
+                    </label>
+
+                    <label class="field">
+                        <span class="field__label">Score</span>
+                        <select class="field__control" id="historyScoreFilter" name="historyScoreFilter">
+                            <option value="all">All scores</option>
+                            <option value="80">80 and above</option>
+                            <option value="70">70 to 79</option>
+                            <option value="0">Below 70</option>
+                        </select>
+                    </label>
+                </div>
+
+                <div class="history-timeline" id="historySessionList" aria-live="polite"></div>
+            </section>
+        </main>
+    </div>
+
+    <script>
+        window.VaniBootstrap = {{ bootstrap | tojson }};
+    </script>
+    <script defer src="{{ url_for('static', filename='js/common.js') }}"></script>
+    <script defer src="{{ url_for('static', filename='js/history.js') }}"></script>
+</body>
+</html>

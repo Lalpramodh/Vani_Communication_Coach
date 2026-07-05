@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#FF5A2C">
+    <title>Vani AI | Practice Session</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body class="app-page practice-page">
+    <a class="skip-link" href="#main-content">Skip to main content</a>
+
+    <div class="app-shell">
+        <button class="nav-toggle" type="button" data-sidebar-toggle aria-label="Open navigation" aria-controls="app-sidebar" aria-expanded="false">
+            <i class="fa-solid fa-bars"></i>
+        </button>
+        <div class="app-backdrop" data-sidebar-dismiss></div>
+
+        <aside class="sidebar" id="app-sidebar">
+            <a class="brand-lockup" href="/dashboard">
+                <span class="brand-lockup__mark">
+                    <i class="fa-solid fa-wave-square" aria-hidden="true"></i>
+                </span>
+                <span>
+                    <strong>Vani AI</strong>
+                    <span>Communication Fitness Coach</span>
+                </span>
+            </a>
+
+            <nav class="sidebar-nav" aria-label="Primary">
+                <a class="sidebar-link" href="/dashboard">
+                    <i class="fa-solid fa-house"></i>
+                    <span>Dashboard</span>
+                </a>
+                <a class="sidebar-link is-active" href="/practice" aria-current="page">
+                    <i class="fa-solid fa-comments"></i>
+                    <span>Practice</span>
+                </a>
+                <a class="sidebar-link" href="/report">
+                    <i class="fa-solid fa-file-lines"></i>
+                    <span>Report</span>
+                </a>
+                <a class="sidebar-link" href="/history">
+                    <i class="fa-solid fa-clock-rotate-left"></i>
+                    <span>History</span>
+                </a>
+            </nav>
+
+            <div class="sidebar-footer">
+                <div class="sidebar-profile">
+                    <div class="sidebar-profile__avatar" data-user-initial>P</div>
+                    <div>
+                        <strong data-user-name>Pramodh</strong>
+                        <span data-user-goal>Executive presence</span>
+                    </div>
+                </div>
+
+                <div class="sidebar-actions">
+                    <button class="sidebar-action" type="button" data-profile-action>
+                        <i class="fa-regular fa-user"></i>
+                        <span>Profile</span>
+                    </button>
+                    <a class="sidebar-action" href="/logout">
+                        <i class="fa-solid fa-arrow-right-from-bracket"></i>
+                        <span>Logout</span>
+                    </a>
+                </div>
+            </div>
+        </aside>
+
+        <main class="page-shell" id="main-content">
+            <header class="page-header page-header--compact reveal">
+                <div>
+                    <span class="page-kicker">Practice session</span>
+                    <h1 id="practiceTitle">Leadership Standup</h1>
+                    <p id="practiceScenario">
+                        Practice one focused communication scenario, respond in your own words, and finish when you are ready for a fresh report.
+                    </p>
+                </div>
+
+                <div class="page-header__actions page-header__actions--session">
+                    <div class="status-pill">
+                        <i class="fa-solid fa-list-ol"></i>
+                        <span id="practiceQuestionCounter">Question 1 of 4</span>
+                    </div>
+                    <div class="status-pill">
+                        <i class="fa-solid fa-chart-line"></i>
+                        <span id="practiceProgressLabel">0% complete</span>
+                    </div>
+                    <div class="status-pill">
+                        <i class="fa-regular fa-clock"></i>
+                        <span id="sessionTimer">00:00</span>
+                    </div>
+                </div>
+            </header>
+
+            <section class="practice-grid">
+                <article class="panel panel--conversation reveal">
+                    <div class="practice-stage">
+                        <div class="practice-stage__copy">
+                            <span class="eyebrow-label">Current coaching objective</span>
+                            <h2 id="practiceObjectiveText">Lead with the business outcome, then support it with one clear decision.</h2>
+                            <p id="currentQuestionText">Your current question will appear here.</p>
+                        </div>
+
+                        <div class="practice-stage__meta">
+                            <div class="status-pill status-pill--soft">
+                                <i class="fa-solid fa-bullseye"></i>
+                                <span id="practiceModeName">Leadership Standup</span>
+                            </div>
+                            <div class="status-pill status-pill--soft">
+                                <i class="fa-solid fa-sparkles"></i>
+                                <span id="practiceObjectiveMeta">Live coaching updates after each answer</span>
+                            </div>
+                        </div>
+
+                        <div class="progress-track">
+                            <div class="progress-track__row">
+                                <span class="progress-track__label" id="practiceProgressText">0 of 4 prompts completed</span>
+                                <span class="progress-track__label" id="practiceProgressPercent">0%</span>
+                            </div>
+                            <div class="progress-bar">
+                                <div class="progress-bar__fill" id="practiceProgressFill"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="conversation-list" id="conversationStream" role="log" aria-live="polite" aria-relevant="additions text"></div>
+
+                    <form class="composer" id="practiceForm" novalidate>
+                        <div class="composer__surface">
+                            <label class="field composer__field">
+                                <span class="field__label">Your answer</span>
+                                <textarea
+                                    class="field__control field__control--textarea"
+                                    id="practiceInput"
+                                    name="practiceInput"
+                                    rows="4"
+                                    placeholder="Answer clearly, directly, and in your own natural voice."></textarea>
+                            </label>
+
+                            <div class="composer__toolbar">
+                                <button class="button button--ghost button--sm" id="voicePracticeButton" type="button">
+                                    <i class="fa-solid fa-microphone-lines"></i>
+                                    <span>Voice</span>
+                                </button>
+                                <span class="micro-copy">Shift + Enter for a new line</span>
+                                <div class="composer__actions">
+                                    <button class="button button--ghost button--sm" id="clearPracticeInput" type="button">
+                                        <i class="fa-solid fa-eraser"></i>
+                                        <span>Clear</span>
+                                    </button>
+                                    <button class="button button--primary" id="sendPracticeMessage" type="submit">
+                                        <i class="fa-solid fa-paper-plane"></i>
+                                        <span>Send</span>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <p class="form-message" id="practiceStatus" role="status" aria-live="polite"></p>
+                        </div>
+                    </form>
+                </article>
+
+                <aside class="practice-rail reveal">
+                    <article class="panel panel--rail">
+                        <div class="panel__head">
+                            <div>
+                                <span class="eyebrow-label">Communication score</span>
+                                <h2>How you sound right now</h2>
+                            </div>
+                        </div>
+
+                        <div class="score-ring score-ring--compact" id="practiceScoreRing">
+                            <div class="score-ring__inner">
+                                <strong id="practiceScoreValue">0</strong>
+                                <span>session score</span>
+                            </div>
+                        </div>
+
+                        <div class="live-metric-list" id="practiceMetrics"></div>
+                    </article>
+
+                    <article class="panel panel--rail">
+                        <div class="panel__head">
+                            <div>
+                                <span class="eyebrow-label">AI coach panel</span>
+                                <h2>Next best cue</h2>
+                            </div>
+                        </div>
+
+                        <div class="coach-tip">
+                            <i class="fa-solid fa-sparkles"></i>
+                            <p id="coachTipText">Start with the main point, support it clearly, and land with certainty.</p>
+                        </div>
+
+                        <div class="outline-list" id="practiceOutline"></div>
+
+                        <button class="button button--secondary button--full" id="finishPracticeButton" type="button">
+                            <i class="fa-solid fa-flag-checkered"></i>
+                            <span>Finish Session</span>
+                        </button>
+                    </article>
+                </aside>
+            </section>
+        </main>
+    </div>
+
+    <script>
+        window.VaniBootstrap = {{ bootstrap | tojson }};
+    </script>
+    <script defer src="{{ url_for('static', filename='js/common.js') }}"></script>
+    <script defer src="{{ url_for('static', filename='js/practice.js') }}"></script>
+</body>
+</html>

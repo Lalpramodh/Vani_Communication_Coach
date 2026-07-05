@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#FF5A2C">
+    <title>Vani AI | Report</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body class="app-page report-page">
+    <a class="skip-link" href="#main-content">Skip to main content</a>
+
+    <div class="app-shell">
+        <button class="nav-toggle" type="button" data-sidebar-toggle aria-label="Open navigation" aria-controls="app-sidebar" aria-expanded="false">
+            <i class="fa-solid fa-bars"></i>
+        </button>
+        <div class="app-backdrop" data-sidebar-dismiss></div>
+
+        <aside class="sidebar" id="app-sidebar">
+            <a class="brand-lockup" href="/dashboard">
+                <span class="brand-lockup__mark">
+                    <i class="fa-solid fa-wave-square" aria-hidden="true"></i>
+                </span>
+                <span>
+                    <strong>Vani AI</strong>
+                    <span>Communication Fitness Coach</span>
+                </span>
+            </a>
+
+            <nav class="sidebar-nav" aria-label="Primary">
+                <a class="sidebar-link" href="/dashboard">
+                    <i class="fa-solid fa-house"></i>
+                    <span>Dashboard</span>
+                </a>
+                <a class="sidebar-link" href="/practice">
+                    <i class="fa-solid fa-comments"></i>
+                    <span>Practice</span>
+                </a>
+                <a class="sidebar-link is-active" href="/report" aria-current="page">
+                    <i class="fa-solid fa-file-lines"></i>
+                    <span>Report</span>
+                </a>
+                <a class="sidebar-link" href="/history">
+                    <i class="fa-solid fa-clock-rotate-left"></i>
+                    <span>History</span>
+                </a>
+            </nav>
+
+            <div class="sidebar-footer">
+                <div class="sidebar-profile">
+                    <div class="sidebar-profile__avatar" data-user-initial>P</div>
+                    <div>
+                        <strong data-user-name>Pramodh</strong>
+                        <span data-user-goal>Executive presence</span>
+                    </div>
+                </div>
+
+                <div class="sidebar-actions">
+                    <button class="sidebar-action" type="button" data-profile-action>
+                        <i class="fa-regular fa-user"></i>
+                        <span>Profile</span>
+                    </button>
+                    <a class="sidebar-action" href="/logout">
+                        <i class="fa-solid fa-arrow-right-from-bracket"></i>
+                        <span>Logout</span>
+                    </a>
+                </div>
+            </div>
+        </aside>
+
+        <main class="page-shell" id="main-content">
+            <header class="page-header reveal">
+                <div>
+                    <span class="page-kicker">Session report</span>
+                    <h1 id="reportTitle">Latest coaching summary</h1>
+                    <p id="reportSubtitle">A focused readout of what sounded strong, what to sharpen, and what to practice next.</p>
+                </div>
+
+                <div class="page-header__actions">
+                    <button class="button button--secondary" id="downloadReportButton" type="button">
+                        <i class="fa-solid fa-download"></i>
+                        <span>Download PDF</span>
+                    </button>
+                    <a class="button button--primary" id="reportPracticeAgain" href="/practice">
+                        <i class="fa-solid fa-rotate-right"></i>
+                        <span>Practice Again</span>
+                    </a>
+                </div>
+            </header>
+
+            <section class="panel panel--score reveal">
+                <div class="panel__head">
+                    <div>
+                        <span class="eyebrow-label">Overall score</span>
+                        <h2 id="reportModeHeading">Leadership Standup</h2>
+                    </div>
+                    <span class="card-tag" id="reportDateLabel">Today</span>
+                </div>
+
+                <div class="score-hero">
+                    <div class="score-ring" id="reportScoreRing">
+                        <div class="score-ring__inner">
+                            <strong id="reportScoreValue">0</strong>
+                            <span>out of 100</span>
+                        </div>
+                    </div>
+
+                    <div class="score-hero__content">
+                        <div class="status-pill status-pill--accent">
+                            <i class="fa-solid fa-signal"></i>
+                            <span id="reportCommunicationLevel">Developing</span>
+                        </div>
+                        <p class="score-summary" id="reportCoachSummary">Your coach summary will appear here.</p>
+                        <div class="metric-strip metric-strip--three">
+                            <div class="metric-pill">
+                                <span>Previous score</span>
+                                <strong id="reportPreviousScore">0</strong>
+                            </div>
+                            <div class="metric-pill">
+                                <span>Improvement</span>
+                                <strong id="reportImprovement">0</strong>
+                            </div>
+                            <div class="metric-pill">
+                                <span>Practice type</span>
+                                <strong id="reportPracticeType">-</strong>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="report-grid reveal">
+                <article class="panel">
+                    <div class="panel__head">
+                        <div>
+                            <span class="eyebrow-label">Top improvements</span>
+                            <h2>What to fix first</h2>
+                        </div>
+                    </div>
+                    <div class="recommendation-list" id="reportTopImprovements"></div>
+                </article>
+
+                <article class="panel">
+                    <div class="panel__head">
+                        <div>
+                            <span class="eyebrow-label">AI recommendation</span>
+                            <h2>Practice cue</h2>
+                        </div>
+                    </div>
+
+                    <div class="coach-tip">
+                        <i class="fa-solid fa-sparkles"></i>
+                        <div>
+                            <p id="reportCoachingTip">Your next coaching tip will appear here.</p>
+                            <p class="micro-copy" id="reportNextPrompt">The next targeted prompt will appear here.</p>
+                        </div>
+                    </div>
+
+                    <div class="summary-card summary-card--note">
+                        <span class="stack-card__label">Professionalism</span>
+                        <p id="reportProfessionalismNote">Professionalism notes will appear here.</p>
+                    </div>
+                </article>
+            </section>
+
+            <section class="panel reveal">
+                <div class="panel__head">
+                    <div>
+                        <span class="eyebrow-label">Detailed scores</span>
+                        <h2>How you performed across the core signals</h2>
+                    </div>
+                </div>
+                <div class="metric-strip metric-strip--five">
+                    <div class="metric-pill">
+                        <span>Grammar</span>
+                        <strong id="reportGrammarScore">0</strong>
+                    </div>
+                    <div class="metric-pill">
+                        <span>Vocabulary</span>
+                        <strong id="reportVocabularyScore">0</strong>
+                    </div>
+                    <div class="metric-pill">
+                        <span>Confidence</span>
+                        <strong id="reportConfidenceScore">0</strong>
+                    </div>
+                    <div class="metric-pill">
+                        <span>Clarity</span>
+                        <strong id="reportClarityScore">0</strong>
+                    </div>
+                    <div class="metric-pill">
+                        <span>Professionalism</span>
+                        <strong id="reportProfessionalismScore">0</strong>
+                    </div>
+                </div>
+            </section>
+
+            <section class="report-columns reveal">
+                <article class="panel">
+                    <div class="panel__head">
+                        <div>
+                            <span class="eyebrow-label">Strengths</span>
+                            <h2>What sounded strongest</h2>
+                        </div>
+                    </div>
+                    <div class="insight-list" id="reportStrengths"></div>
+                </article>
+
+                <article class="panel">
+                    <div class="panel__head">
+                        <div>
+                            <span class="eyebrow-label">Weaknesses</span>
+                            <h2>What to sharpen next</h2>
+                        </div>
+                    </div>
+                    <div class="insight-list" id="reportGrowthAreas"></div>
+                </article>
+            </section>
+
+            <section class="report-columns reveal">
+                <article class="panel">
+                    <div class="panel__head">
+                        <div>
+                            <span class="eyebrow-label">Grammar issues</span>
+                            <h2>Language cleanup</h2>
+                        </div>
+                    </div>
+                    <div class="insight-list" id="reportGrammarIssues"></div>
+                </article>
+
+                <article class="panel">
+                    <div class="panel__head">
+                        <div>
+                            <span class="eyebrow-label">Clarity issues</span>
+                            <h2>Structure gaps</h2>
+                        </div>
+                    </div>
+                    <div class="insight-list" id="reportClarityIssues"></div>
+                </article>
+            </section>
+
+            <section class="report-grid reveal">
+                <article class="panel">
+                    <div class="panel__head">
+                        <div>
+                            <span class="eyebrow-label">Coach summary</span>
+                            <h2>Focused takeaway</h2>
+                        </div>
+                    </div>
+                    <div class="summary-card">
+                        <p id="reportLongSummary">Your report summary will appear here after a session is selected.</p>
+                    </div>
+                </article>
+
+                <article class="panel">
+                    <div class="panel__head">
+                        <div>
+                            <span class="eyebrow-label">Improved version</span>
+                            <h2>How to answer it better</h2>
+                        </div>
+                    </div>
+                    <div class="summary-card summary-card--improved">
+                        <p id="reportImprovedVersion">Your improved version will appear here.</p>
+                    </div>
+                </article>
+            </section>
+        </main>
+    </div>
+
+    <script>
+        window.VaniBootstrap = {{ bootstrap | tojson }};
+    </script>
+    <script defer src="{{ url_for('static', filename='js/common.js') }}"></script>
+    <script defer src="{{ url_for('static', filename='js/report.js') }}"></script>
+</body>
+</html>
