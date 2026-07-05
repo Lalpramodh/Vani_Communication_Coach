@@ -7,5 +7,4 @@ supabase==2.16.0
 chromadb==1.0.15
 sentence-transformers==5.0.0
 requests==2.32.3
-numpy==2.3.1
-python-3.11.11
+numpy==1.26.4
