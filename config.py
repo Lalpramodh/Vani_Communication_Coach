@@ -23,12 +23,17 @@ def normalize_supabase_project_url(url):
 
 SUPABASE_URL = _required_env("SUPABASE_URL")
 SUPABASE_KEY = _required_env("SUPABASE_KEY")
-SECRET_KEY = _required_env("SECRET_KEY")
+
+# Supabase Service Role Key
+SUPABASE_SERVICE_KEY = _required_env("SECRET_KEY")
+
+# Flask Session Secret
+FLASK_SECRET_KEY = _required_env("FLASK_SECRET_KEY")
+
+# Groq API Key
 GROQ_API_KEY = _required_env("GROQ_API_KEY")
 
 SUPABASE_PROJECT_URL = normalize_supabase_project_url(SUPABASE_URL)
-SUPABASE_SERVICE_KEY = SECRET_KEY
-FLASK_SECRET_KEY = _required_env("FLASK_SECRET_KEY")
 
 BASE_DIR = Path(__file__).resolve().parent
 RAG_DOCS_DIR = BASE_DIR / "rag" / "docs"
