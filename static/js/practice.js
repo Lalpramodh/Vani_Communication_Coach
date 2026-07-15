@@ -1,10 +1,16 @@
 document.addEventListener("DOMContentLoaded", function () {
     const app = window.VaniApp;
     const METRIC_ORDER = ["clarity", "grammar", "confidence", "professionalism", "vocabulary"];
+    const SPEECH_RATE = 1;
+    const SPEECH_PITCH = 1;
+    const SPEECH_LANG = "en-US";
 
     if (!app) {
         return;
     }
+
+    const params = new URLSearchParams(window.location.search);
+    const selectedModeId = params.get("mode") || "leadership-standup";
 
     const form = document.getElementById("practiceForm");
     const input = document.getElementById("practiceInput");
@@ -15,6 +21,18 @@ document.addEventListener("DOMContentLoaded", function () {
     const conversation = document.getElementById("conversationStream");
     const metricsContainer = document.getElementById("practiceMetrics");
     const outlineContainer = document.getElementById("practiceOutline");
+    const voiceState = document.getElementById("practiceVoiceState");
+    const voiceWave = document.getElementById("practiceVoiceWave");
+    const customScenarioPanel = document.getElementById("customScenarioPanel");
+    const customScenarioForm = document.getElementById("customScenarioForm");
+    const scenarioInput = document.getElementById("scenarioPromptInput");
+    const scenarioVoiceButton = document.getElementById("scenarioVoiceButton");
+    const startCustomScenarioButton = document.getElementById("startCustomScenarioButton");
+    const customScenarioStatus = document.getElementById("customScenarioStatus");
+    const pauseSpeechButton = document.getElementById("pauseSpeechButton");
+    const resumeSpeechButton = document.getElementById("resumeSpeechButton");
+    const stopSpeechButton = document.getElementById("stopSpeechButton");
+    const replaySpeechButton = document.getElementById("replaySpeechButton");
 
     if (!form || !input || !sendButton || !finishButton || !conversation || !metricsContainer || !outlineContainer) {
         return;
@@ -26,50 +44,46 @@ document.addEventListener("DOMContentLoaded", function () {
     let isBusy = false;
     let recognition = null;
     let isListening = false;
+    let activeVoiceTarget = null;
     let voiceSeed = "";
     let streamingEntry = null;
+    let lastAssistantReply = "";
+    let currentUtterance = null;
+    let isSpeaking = false;
+    let loadStarted = false;
 
     function getMode() {
-        return app.getModeById(state.modeId);
+        if (state && state.modeId) {
+            return app.getModeById(state.modeId);
+        }
+        return app.getModeById(selectedModeId);
     }
 
-    function isOpenEndedMode() {
+    function isCustomMode() {
         const mode = getMode();
-        return Boolean(mode && mode.isOpenEnded);
-    }
-
-    function getStopPhrase() {
-        const mode = getMode();
-        return (mode && mode.stopPhrase) || "ok stop the chat";
+        return Boolean(mode && mode.isCustomScenario);
     }
 
     function isSessionComplete() {
-        if (!state) {
-            return false;
-        }
-
-        if (isOpenEndedMode()) {
-            return Boolean(state.wrappedUp);
-        }
-
-        return state.answers.length >= getMode().questions.length;
+        return Boolean(state && state.wrappedUp);
     }
 
     function getProgressPercent() {
-        const mode = getMode();
-        if (isOpenEndedMode()) {
-            if (isSessionComplete()) {
-                return 100;
-            }
-            return Math.min(92, state.answers.length * 18);
+        if (!state) {
+            return 0;
         }
-        return Math.round((state.answers.length / mode.questions.length) * 100);
+
+        if (isSessionComplete()) {
+            return 100;
+        }
+
+        return Math.min(92, state.answers.length * 16);
     }
 
     function getSessionScore() {
-        const latestScores = state.latestScores || {};
+        const latestScores = state && state.latestScores ? state.latestScores : {};
 
-        if (!state.answers.length) {
+        if (!state || !state.answers.length) {
             return 0;
         }
 
@@ -95,8 +109,7 @@ document.addEventListener("DOMContentLoaded", function () {
         }
 
         const startedAt = new Date(state.startedAt).getTime();
-        const now = Date.now();
-        const totalSeconds = Math.max(0, Math.round((now - startedAt) / 1000));
+        const totalSeconds = Math.max(0, Math.round((Date.now() - startedAt) / 1000));
         const minutes = String(Math.floor(totalSeconds / 60)).padStart(2, "0");
         const seconds = String(totalSeconds % 60).padStart(2, "0");
         const timer = document.getElementById("sessionTimer");
@@ -106,105 +119,283 @@ document.addEventListener("DOMContentLoaded", function () {
         }
     }
 
-    function autoResizeInput() {
-        input.style.height = "auto";
-        input.style.height = Math.min(input.scrollHeight, 220) + "px";
+    function autoResizeInput(target) {
+        const field = target || input;
+        field.style.height = "auto";
+        field.style.height = Math.min(field.scrollHeight, 220) + "px";
+    }
+
+    function setVoiceState(label, stateName) {
+        if (voiceState) {
+            const labelNode = voiceState.querySelector("span");
+            if (labelNode) {
+                labelNode.textContent = label;
+            }
+            voiceState.dataset.state = stateName || "idle";
+        }
+
+        if (voiceWave) {
+            voiceWave.dataset.state = stateName || "idle";
+        }
+    }
+
+    function stopSpeaking() {
+        if (window.speechSynthesis) {
+            window.speechSynthesis.cancel();
+        }
+        currentUtterance = null;
+        isSpeaking = false;
+        setVoiceState(isListening ? "Listening" : "Ready", isListening ? "listening" : "idle");
+    }
+
+    function speakText(text, shouldReplay) {
+        const content = String(text || "").trim();
+
+        if (!content || !window.speechSynthesis || typeof window.SpeechSynthesisUtterance === "undefined") {
+            return;
+        }
+
+        if (currentUtterance && !shouldReplay) {
+            window.speechSynthesis.cancel();
+        }
+
+        const utterance = new window.SpeechSynthesisUtterance(content);
+        currentUtterance = utterance;
+        utterance.lang = SPEECH_LANG;
+        utterance.rate = SPEECH_RATE;
+        utterance.pitch = SPEECH_PITCH;
+        utterance.volume = 1;
+
+        utterance.onstart = function () {
+            isSpeaking = true;
+            setVoiceState("Speaking", "speaking");
+        };
+
+        utterance.onend = function () {
+            isSpeaking = false;
+            currentUtterance = null;
+            setVoiceState(isListening ? "Listening" : "Ready", isListening ? "listening" : "idle");
+        };
+
+        utterance.onerror = function () {
+            isSpeaking = false;
+            currentUtterance = null;
+            setVoiceState(isListening ? "Listening" : "Ready", isListening ? "listening" : "idle");
+        };
+
+        window.speechSynthesis.speak(utterance);
+    }
+
+    function replayLastResponse() {
+        if (lastAssistantReply) {
+            speakText(lastAssistantReply, true);
+        }
+    }
+
+    function updateVoiceButtons() {
+        if (voiceButton) {
+            const label = voiceButton.querySelector("span");
+            voiceButton.classList.toggle("is-active", isListening);
+            if (label) {
+                label.textContent = isListening ? "Listening" : "Voice";
+            }
+        }
+
+        if (scenarioVoiceButton) {
+            const label = scenarioVoiceButton.querySelector("span");
+            scenarioVoiceButton.classList.toggle("is-active", isListening && activeVoiceTarget === scenarioInput);
+            if (label) {
+                label.textContent = isListening && activeVoiceTarget === scenarioInput ? "Listening" : "Speak scenario";
+            }
+        }
+    }
+
+    function getRecognition() {
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+        if (!SpeechRecognition) {
+            return null;
+        }
+
+        if (!recognition) {
+            recognition = new SpeechRecognition();
+            recognition.lang = SPEECH_LANG;
+            recognition.continuous = false;
+            recognition.interimResults = true;
+
+            recognition.onresult = function (event) {
+                const transcript = Array.from(event.results).map(function (result) {
+                    return result[0].transcript;
+                }).join(" ").trim();
+                const nextValue = [voiceSeed, transcript].filter(Boolean).join(" ").trim();
+
+                if (activeVoiceTarget) {
+                    activeVoiceTarget.value = nextValue;
+                    autoResizeInput(activeVoiceTarget);
+                }
+            };
+
+            recognition.onend = function () {
+                isListening = false;
+                activeVoiceTarget = null;
+                voiceSeed = "";
+                updateVoiceButtons();
+                setVoiceState(isSpeaking ? "Speaking" : "Ready", isSpeaking ? "speaking" : "idle");
+            };
+
+            recognition.onerror = function (event) {
+                isListening = false;
+                activeVoiceTarget = null;
+                voiceSeed = "";
+                updateVoiceButtons();
+                setVoiceState("Ready", "idle");
+                app.showToast({
+                    tone: "warning",
+                    title: "Microphone unavailable",
+                    message: event && event.error === "not-allowed"
+                        ? "Microphone access was blocked. Please allow it and try again."
+                        : "Voice capture stopped before the transcript finished."
+                });
+            };
+        }
+
+        return recognition;
+    }
+
+    function startListening(targetInput) {
+        const speechRecognition = getRecognition();
+
+        if (!speechRecognition) {
+            app.showToast({
+                tone: "info",
+                title: "Voice not supported",
+                message: "This browser does not support live speech transcription."
+            });
+            return;
+        }
+
+        if (isListening) {
+            speechRecognition.stop();
+            return;
+        }
+
+        stopSpeaking();
+        activeVoiceTarget = targetInput || input;
+        voiceSeed = activeVoiceTarget.value.trim();
+        isListening = true;
+        updateVoiceButtons();
+        setVoiceState("Listening", "listening");
+
+        try {
+            speechRecognition.start();
+        } catch (error) {
+            isListening = false;
+            activeVoiceTarget = null;
+            voiceSeed = "";
+            updateVoiceButtons();
+            setVoiceState("Ready", "idle");
+            app.showToast({
+                tone: "warning",
+                title: "Microphone unavailable",
+                message: error.message || "Voice capture could not start."
+            });
+        }
+    }
+
+    function renderLoadingState() {
+        conversation.innerHTML = [
+            '<div class="message message--coach">',
+            '<div class="message__avatar"><i class="fa-solid fa-sparkles"></i></div>',
+            '<div class="message__bubble">',
+            '<div class="skeleton skeleton--title"></div>',
+            '<div class="skeleton skeleton--text"></div>',
+            '<div class="skeleton skeleton--text skeleton--text-short"></div>',
+            "</div>",
+            "</div>"
+        ].join("");
+
+        metricsContainer.innerHTML = new Array(5).fill("").map(function () {
+            return [
+                '<div class="live-metric is-loading-card">',
+                '<div class="skeleton skeleton--title"></div>',
+                '<div class="skeleton skeleton--text skeleton--text-short"></div>',
+                "</div>"
+            ].join("");
+        }).join("");
     }
 
     function renderHeader() {
         const mode = getMode();
+        const percent = getProgressPercent();
+        const isComplete = isSessionComplete();
+        const title = document.getElementById("practiceTitle");
+        const scenario = document.getElementById("practiceScenario");
         const questionCounter = document.getElementById("practiceQuestionCounter");
         const progressLabel = document.getElementById("practiceProgressLabel");
         const progressText = document.getElementById("practiceProgressText");
         const progressPercent = document.getElementById("practiceProgressPercent");
-        const title = document.getElementById("practiceTitle");
-        const modeName = document.getElementById("practiceModeName");
-        const scenario = document.getElementById("practiceScenario");
         const currentQuestion = document.getElementById("currentQuestionText");
         const objective = document.getElementById("practiceObjectiveText");
         const objectiveMeta = document.getElementById("practiceObjectiveMeta");
+        const modeName = document.getElementById("practiceModeName");
         const scoreValue = document.getElementById("practiceScoreValue");
-        const percent = getProgressPercent();
-        const isComplete = isSessionComplete();
-        const openEnded = isOpenEndedMode();
-        const stopPhrase = getStopPhrase();
-        const replyCount = state.answers.length;
 
         if (title) {
             title.textContent = mode.title;
         }
-        if (modeName) {
-            modeName.textContent = mode.title;
-        }
         if (scenario) {
-            scenario.textContent = mode.scenario;
+            scenario.textContent = state && state.mode ? state.mode.scenario : mode.scenario;
         }
         if (objective) {
             objective.textContent = mode.objective || mode.coachTip;
         }
         if (objectiveMeta) {
-            if (openEnded) {
-                objectiveMeta.textContent = isComplete
-                    ? "Your chat is wrapped up. Finish whenever you're ready."
-                    : "Chat naturally. Say '" + stopPhrase + "' whenever you want to wrap up.";
-            } else {
-                objectiveMeta.textContent = isComplete
-                    ? "Your report is ready as soon as you finish the session"
-                    : "Live coaching updates after each answer";
-            }
+            objectiveMeta.textContent = isComplete
+                ? "Your report is ready as soon as you finish the session."
+                : (isCustomMode()
+                    ? "Describe your situation and the coach will infer the other role."
+                    : "Speak naturally. The coach will stay in character and challenge your answer.");
+        }
+        if (modeName) {
+            modeName.textContent = mode.title;
         }
         if (questionCounter) {
-            if (openEnded) {
-                questionCounter.textContent = isComplete
-                    ? "Chat wrapped up"
-                    : replyCount
-                        ? replyCount + (replyCount === 1 ? " reply coached" : " replies coached")
-                        : "Open-ended chat";
-            } else {
-                questionCounter.textContent = isComplete
-                    ? "Session complete"
-                    : "Question " + (state.turnIndex + 1) + " of " + mode.questions.length;
-            }
+            questionCounter.textContent = state
+                ? (isComplete ? "Session complete" : "Voice turn " + (state.answers.length + 1))
+                : (isCustomMode() ? "Start custom roleplay" : "Ready to begin");
         }
         if (progressLabel) {
-            progressLabel.textContent = openEnded
-                ? (isComplete ? "Wrap-up ready" : "Open-ended")
-                : percent + "% complete";
+            progressLabel.textContent = isComplete ? "Wrap-up ready" : percent + "% complete";
         }
         if (progressText) {
-            progressText.textContent = openEnded
-                ? (isComplete
-                    ? "Wrapped up after " + replyCount + (replyCount === 1 ? " reply" : " replies")
-                    : replyCount
-                        ? replyCount + (replyCount === 1 ? " reply coached so far" : " replies coached so far")
-                        : "No replies coached yet")
-                : state.answers.length + " of " + mode.questions.length + " prompts completed";
+            progressText.textContent = state
+                ? (state.answers.length + (state.answers.length === 1 ? " turn coached" : " turns coached"))
+                : "0 turns coached";
         }
         if (progressPercent) {
-            progressPercent.textContent = openEnded
-                ? (isComplete ? "Done" : "Live")
-                : percent + "%";
+            progressPercent.textContent = isComplete ? "Done" : percent + "%";
         }
         if (currentQuestion) {
-            if (openEnded) {
-                currentQuestion.textContent = isComplete
-                    ? "The friendly chat is wrapped up. Finish the session when you're ready to generate the report."
-                    : replyCount
-                        ? "Keep the conversation going naturally. Add one clear detail, respond to the latest follow-up, and say '" + stopPhrase + "' whenever you want to wrap up."
-                        : mode.questions[0];
-            } else {
-                currentQuestion.textContent = isComplete
-                    ? "You've answered every prompt. Finish the session when you're ready to generate the report."
-                    : mode.questions[state.turnIndex];
+            if (!state) {
+                currentQuestion.textContent = isCustomMode()
+                    ? "Describe the situation you want to practice and then start the roleplay."
+                    : mode.openingLine || mode.scenario;
+            } else if (isComplete) {
+                currentQuestion.textContent = "The roleplay is complete. Finish the session when you are ready for the report.";
+            } else if (state.transcript.length) {
+                const latestCoachLine = state.transcript[state.transcript.length - 1].role === "assistant"
+                    ? state.transcript[state.transcript.length - 1].content
+                    : mode.openingLine;
+                currentQuestion.textContent = latestCoachLine;
             }
         }
         if (scoreValue) {
             scoreValue.textContent = String(getSessionScore());
         }
 
-        input.placeholder = openEnded
-            ? "Reply naturally. Say '" + stopPhrase + "' whenever you want to wrap up."
-            : "Answer clearly, directly, and in your own natural voice.";
+        input.placeholder = isCustomMode()
+            ? "Keep the roleplay going. The AI will stay in character."
+            : "Answer naturally, then listen to the coach's next move.";
 
         app.setScoreRing("practiceScoreRing", getSessionScore());
         app.setProgress("practiceProgressFill", percent);
@@ -231,6 +422,15 @@ document.addEventListener("DOMContentLoaded", function () {
 
     function renderConversation() {
         if (!state) {
+            conversation.innerHTML = [
+                '<div class="message message--coach">',
+                '<div class="message__avatar"><i class="fa-solid fa-sparkles"></i></div>',
+                '<div class="message__bubble">',
+                '<div class="message__meta"><strong>Vani Coach</strong></div>',
+                '<div class="message__text">Choose a roleplay and start speaking when you are ready.</div>',
+                "</div>",
+                "</div>"
+            ].join("");
             return;
         }
 
@@ -262,10 +462,10 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     function renderMetrics() {
-        const scores = state.latestScores || {};
+        const scores = state && state.latestScores ? state.latestScores : {};
 
         metricsContainer.innerHTML = METRIC_ORDER.map(function (metric) {
-            const value = state.answers.length ? (scores[metric] || 0) : 0;
+            const value = state && state.answers.length ? (scores[metric] || 0) : 0;
             return [
                 '<div class="live-metric">',
                 '<div class="live-metric__top">',
@@ -286,24 +486,38 @@ document.addEventListener("DOMContentLoaded", function () {
 
     function renderOutline() {
         const mode = getMode();
-        const completedCount = state.answers.length;
-        const openEnded = isOpenEndedMode();
-        const isComplete = isSessionComplete();
-        const currentIndex = openEnded
-            ? Math.min(completedCount, Math.max(mode.questions.length - 1, 0))
-            : completedCount;
+        const currentTone = state ? "Live roleplay" : "Getting started";
+        const completedCount = state ? state.answers.length : 0;
 
-        outlineContainer.innerHTML = mode.questions.map(function (question, index) {
-            const isDone = openEnded
-                ? index < Math.min(completedCount, mode.questions.length)
-                : index < completedCount;
-            const isCurrent = !isComplete && index === currentIndex && (openEnded || completedCount < mode.questions.length);
+        outlineContainer.innerHTML = [
+            {
+                title: "Opening move",
+                copy: mode.openingLine || mode.scenario,
+                done: completedCount > 0
+            },
+            {
+                title: "Goal",
+                copy: mode.objective || mode.coachTip,
+                done: completedCount > 1
+            },
+            {
+                title: "Challenge style",
+                copy: mode.challengeStyle || "Keep it natural and in character.",
+                done: completedCount > 2
+            },
+            {
+                title: "Wrap up",
+                copy: "Finish the session when you are ready for a detailed report.",
+                done: isSessionComplete()
+            }
+        ].map(function (item, index) {
             return [
-                '<div class="outline-item' + (isDone ? " is-done" : isCurrent ? " is-current" : "") + '">',
-                '<div class="outline-item__step">' + (isDone ? '<i class="fa-solid fa-check"></i>' : index + 1) + "</div>",
+                '<div class="outline-item' + (item.done ? " is-done" : index === 0 && !state ? " is-current" : "") + '">',
+                '<div class="outline-item__step">' + (item.done ? '<i class="fa-solid fa-check"></i>' : index + 1) + "</div>",
                 '<div class="outline-item__copy">',
-                "<strong>" + (openEnded ? "Starter " : "Prompt ") + (index + 1) + "</strong>",
-                "<span>" + app.sanitizeText(question) + "</span>",
+                "<strong>" + app.sanitizeText(item.title) + "</strong>",
+                "<span>" + app.sanitizeText(item.copy) + "</span>",
+                "<span class=\"micro-copy\">" + app.sanitizeText(currentTone) + "</span>",
                 "</div>",
                 "</div>"
             ].join("");
@@ -311,7 +525,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
         const coachTip = document.getElementById("coachTipText");
         if (coachTip) {
-            coachTip.textContent = state.coachTip;
+            coachTip.textContent = state ? state.coachTip : (mode.coachTip || mode.objective);
         }
     }
 
@@ -323,80 +537,89 @@ document.addEventListener("DOMContentLoaded", function () {
         updateTimer();
     }
 
-    function renderLoadingState() {
-        conversation.innerHTML = [
-            '<div class="message message--coach">',
-            '<div class="message__avatar"><i class="fa-solid fa-sparkles"></i></div>',
-            '<div class="message__bubble">',
-            '<div class="skeleton skeleton--title"></div>',
-            '<div class="skeleton skeleton--text"></div>',
-            '<div class="skeleton skeleton--text skeleton--text-short"></div>',
-            "</div>",
-            "</div>"
-        ].join("");
-
-        metricsContainer.innerHTML = new Array(5).fill("").map(function () {
-            return [
-                '<div class="live-metric is-loading-card">',
-                '<div class="skeleton skeleton--title"></div>',
-                '<div class="skeleton skeleton--text skeleton--text-short"></div>',
-                "</div>"
-            ].join("");
-        }).join("");
+    function showCustomScenarioPanel(show) {
+        if (customScenarioPanel) {
+            customScenarioPanel.hidden = !show;
+        }
     }
 
-    function updateVoiceButton() {
-        if (!voiceButton) {
+    function prepareSession(session) {
+        state = session;
+        lastAssistantReply = "";
+        if (state && state.transcript && state.transcript.length) {
+            const openingEntry = state.transcript[0];
+            if (openingEntry && openingEntry.role === "assistant") {
+                lastAssistantReply = openingEntry.content || "";
+            }
+        }
+        render();
+        showCustomScenarioPanel(false);
+        if (!timerId) {
+            timerId = window.setInterval(updateTimer, 1000);
+        }
+        window.setTimeout(function () {
+            if (state && state.transcript && state.transcript.length) {
+                const assistantEntry = state.transcript[state.transcript.length - 1];
+                if (assistantEntry && assistantEntry.role === "assistant") {
+                    speakText(assistantEntry.content);
+                }
+            }
+        }, 100);
+    }
+
+    function renderCustomStarterState() {
+        showCustomScenarioPanel(true);
+        if (scenarioInput && params.get("scenario")) {
+            scenarioInput.value = params.get("scenario");
+            autoResizeInput(scenarioInput);
+        }
+        if (customScenarioStatus) {
+            customScenarioStatus.textContent = "Describe the situation, then start the roleplay.";
+        }
+        render();
+    }
+
+    function renderSessionLoadingState() {
+        renderLoadingState();
+        const mode = getMode();
+        const questionCounter = document.getElementById("practiceQuestionCounter");
+        if (questionCounter) {
+            questionCounter.textContent = mode.isCustomScenario ? "Start custom roleplay" : "Voice roleplay";
+        }
+        if (customScenarioPanel) {
+            customScenarioPanel.hidden = true;
+        }
+    }
+
+    function startSessionWithScenario(scenarioText) {
+        const mode = getMode();
+
+        if (!scenarioText.trim()) {
+            app.setStatus("customScenarioStatus", "Describe a situation before starting the roleplay.", "error");
             return;
         }
 
-        const label = voiceButton.querySelector("span");
-        voiceButton.classList.toggle("is-active", isListening);
+        app.setButtonLoading(startCustomScenarioButton, true, "Starting");
+        isBusy = true;
 
-        if (label) {
-            label.textContent = isListening ? "Listening" : "Voice";
-        }
-    }
-
-    function getRecognition() {
-        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-
-        if (!SpeechRecognition) {
-            return null;
-        }
-
-        if (!recognition) {
-            recognition = new SpeechRecognition();
-            recognition.lang = "en-US";
-            recognition.continuous = false;
-            recognition.interimResults = true;
-
-            recognition.onresult = function (event) {
-                const transcript = Array.from(event.results).map(function (result) {
-                    return result[0].transcript;
-                }).join(" ").trim();
-                const nextValue = [voiceSeed, transcript].filter(Boolean).join(" ").trim();
-                input.value = nextValue;
-                autoResizeInput();
-            };
-
-            recognition.onend = function () {
-                isListening = false;
-                updateVoiceButton();
-            };
-
-            recognition.onerror = function () {
-                isListening = false;
-                updateVoiceButton();
-                app.showToast({
-                    tone: "warning",
-                    title: "Voice unavailable",
-                    message: "Voice capture stopped before the transcript finished."
-                });
-            };
-        }
-
-        return recognition;
+        app.apiRequest("/api/practice/session" + app.buildQuery({
+            mode: mode.id,
+            restart: 1,
+            scenario: scenarioText
+        })).then(function (payload) {
+            prepareSession(payload.session);
+            app.setStatus("customScenarioStatus", "Roleplay started. Speak or type your first response.", "success");
+        }).catch(function (error) {
+            app.setStatus("customScenarioStatus", error.message || "The roleplay could not be started.", "error");
+            app.showToast({
+                tone: "error",
+                title: "Scenario unavailable",
+                message: error.message || "Please try again."
+            });
+        }).finally(function () {
+            isBusy = false;
+            app.setButtonLoading(startCustomScenarioButton, false);
+        });
     }
 
     async function animateAssistantReply(entry) {
@@ -435,26 +658,14 @@ document.addEventListener("DOMContentLoaded", function () {
     async function finishCurrentSession() {
         const mode = getMode();
 
-        if (!state.answers.length) {
-            app.setStatus("practiceStatus", "Answer at least one prompt before finishing.", "error");
+        if (!state || !state.answers.length) {
+            app.setStatus("practiceStatus", "Answer at least one turn before finishing.", "error");
             app.showToast({
                 tone: "warning",
                 title: "Session not ready",
-                message: "Answer at least one prompt before generating a report."
+                message: "Give the roleplay one real turn before generating a report."
             });
             return;
-        }
-
-        if (isOpenEndedMode() && !state.wrappedUp) {
-            const shouldFinish = window.confirm("Wrap up this friendly chat and generate a report?");
-            if (!shouldFinish) {
-                return;
-            }
-        } else if (!isOpenEndedMode() && state.answers.length < mode.questions.length) {
-            const shouldFinish = window.confirm("You still have prompts remaining. Generate a report with the current answers?");
-            if (!shouldFinish) {
-                return;
-            }
         }
 
         app.setButtonLoading(finishButton, true, "Finishing");
@@ -465,6 +676,7 @@ document.addEventListener("DOMContentLoaded", function () {
                 method: "POST"
             });
 
+            stopSpeaking();
             app.showToast({
                 tone: "success",
                 title: "Session complete",
@@ -487,9 +699,7 @@ document.addEventListener("DOMContentLoaded", function () {
         }
     }
 
-    form.addEventListener("submit", async function (event) {
-        event.preventDefault();
-
+    async function sendPracticeMessage() {
         if (isBusy || !state) {
             return;
         }
@@ -501,22 +711,17 @@ document.addEventListener("DOMContentLoaded", function () {
         app.setStatus("practiceStatus", "");
 
         if (!answer) {
-            app.setStatus("practiceStatus", "Write or dictate an answer before sending.", "error");
+            app.setStatus("practiceStatus", "Write or dictate a response before sending.", "error");
             input.focus();
             return;
         }
 
         if (isSessionComplete()) {
-            app.setStatus(
-                "practiceStatus",
-                isOpenEndedMode()
-                    ? "This chat is already wrapped up. Finish when you're ready."
-                    : "This session is already complete. Finish when you're ready.",
-                "success"
-            );
+            app.setStatus("practiceStatus", "This session is already complete. Finish when you are ready.", "success");
             return;
         }
 
+        stopSpeaking();
         isTyping = true;
         isBusy = true;
         streamingEntry = null;
@@ -536,13 +741,13 @@ document.addEventListener("DOMContentLoaded", function () {
             isTyping = false;
             input.value = "";
             autoResizeInput();
-            state = Object.assign({}, nextState, {
-                transcript: nextState.transcript.slice(0, -1)
-            });
+            state = Object.assign({}, nextState);
             render();
 
             if (assistantEntry) {
+                lastAssistantReply = assistantEntry.content || "";
                 await animateAssistantReply(assistantEntry);
+                speakText(assistantEntry.content);
             }
 
             state = nextState;
@@ -551,15 +756,11 @@ document.addEventListener("DOMContentLoaded", function () {
 
             app.setStatus(
                 "practiceStatus",
-                isOpenEndedMode()
-                    ? (nextState.answers.length === previousAnswerCount && !isSessionComplete()
-                        ? "Start with one real message, then say '" + getStopPhrase() + "' whenever you want to wrap up."
-                        : isSessionComplete()
-                        ? "Friendly chat wrapped up. Finish when you're ready."
-                        : "Reply coached. Keep chatting, or say '" + getStopPhrase() + "' whenever you want to wrap up.")
-                    : (state.answers.length >= mode.questions.length
-                        ? "All prompts answered. Finish when you're ready."
-                        : "Answer recorded. The next prompt is ready."),
+                isSessionComplete()
+                    ? "Roleplay wrapped up. Finish when you are ready."
+                    : (state.answers.length === previousAnswerCount
+                        ? "Keep going when you are ready."
+                        : "Reply coached. Keep the conversation moving naturally."),
                 "success"
             );
         } catch (error) {
@@ -576,82 +777,120 @@ document.addEventListener("DOMContentLoaded", function () {
             isBusy = false;
             app.setButtonLoading(sendButton, false);
         }
-    });
+    }
 
-    input.addEventListener("keydown", function (event) {
-        if (event.key === "Enter" && !event.shiftKey) {
-            event.preventDefault();
-            form.requestSubmit();
+    function loadPracticeSession() {
+        if (loadStarted) {
+            return;
         }
-    });
 
-    input.addEventListener("input", function () {
-        autoResizeInput();
-    });
+        loadStarted = true;
 
-    if (clearButton) {
-        clearButton.addEventListener("click", function () {
-            input.value = "";
-            autoResizeInput();
-            input.focus();
-        });
-    }
+        if (isCustomMode()) {
+            renderCustomStarterState();
+            return;
+        }
 
-    if (voiceButton) {
-        voiceButton.addEventListener("click", function () {
-            const speechRecognition = getRecognition();
+        renderSessionLoadingState();
 
-            if (!speechRecognition) {
-                app.showToast({
-                    tone: "info",
-                    title: "Voice not supported",
-                    message: "This browser does not support live speech transcription."
-                });
-                return;
-            }
-
-            if (isListening) {
-                speechRecognition.stop();
-                return;
-            }
-
-            voiceSeed = input.value.trim();
-            isListening = true;
-            updateVoiceButton();
-            speechRecognition.start();
-        });
-    }
-
-    finishButton.addEventListener("click", finishCurrentSession);
-
-    renderLoadingState();
-    autoResizeInput();
-
-    (async function loadPracticeSession() {
-        try {
-            const params = new URLSearchParams(window.location.search);
-            const payload = await app.apiRequest("/api/practice/session" + app.buildQuery({
-                mode: params.get("mode"),
-                restart: params.get("restart")
-            }));
-
-            state = payload.session;
-            timerId = window.setInterval(updateTimer, 1000);
-
-            window.addEventListener("beforeunload", function () {
-                if (timerId) {
-                    window.clearInterval(timerId);
-                }
-            });
-
-            render();
-        } catch (error) {
+        app.apiRequest("/api/practice/session" + app.buildQuery({
+            mode: selectedModeId,
+            restart: params.get("restart")
+        })).then(function (payload) {
+            prepareSession(payload.session);
+        }).catch(function (error) {
             app.setStatus("practiceStatus", error.message || "The practice session could not load.", "error");
             app.showToast({
                 tone: "error",
                 title: "Practice unavailable",
                 message: error.message || "Please refresh and try again."
             });
+        });
+    }
+
+    form.addEventListener("submit", function (event) {
+        event.preventDefault();
+        sendPracticeMessage();
+    });
+
+    input.addEventListener("keydown", function (event) {
+        if (event.key === "Enter" && !event.shiftKey) {
+            event.preventDefault();
+            sendPracticeMessage();
         }
-    })();
+    });
+
+    input.addEventListener("input", function () {
+        autoResizeInput(input);
+    });
+
+    if (clearButton) {
+        clearButton.addEventListener("click", function () {
+            input.value = "";
+            autoResizeInput(input);
+            input.focus();
+        });
+    }
+
+    if (voiceButton) {
+        voiceButton.addEventListener("click", function () {
+            startListening(input);
+        });
+    }
+
+    if (scenarioVoiceButton) {
+        scenarioVoiceButton.addEventListener("click", function () {
+            startListening(scenarioInput || input);
+        });
+    }
+
+    if (pauseSpeechButton) {
+        pauseSpeechButton.addEventListener("click", function () {
+            if (window.speechSynthesis && window.speechSynthesis.speaking) {
+                window.speechSynthesis.pause();
+                setVoiceState("Paused", "paused");
+            }
+        });
+    }
+
+    if (resumeSpeechButton) {
+        resumeSpeechButton.addEventListener("click", function () {
+            if (window.speechSynthesis && window.speechSynthesis.paused) {
+                window.speechSynthesis.resume();
+                setVoiceState("Speaking", "speaking");
+            }
+        });
+    }
+
+    if (stopSpeechButton) {
+        stopSpeechButton.addEventListener("click", stopSpeaking);
+    }
+
+    if (replaySpeechButton) {
+        replaySpeechButton.addEventListener("click", replayLastResponse);
+    }
+
+    if (customScenarioForm) {
+        customScenarioForm.addEventListener("submit", function (event) {
+            event.preventDefault();
+            startSessionWithScenario((scenarioInput && scenarioInput.value) || "");
+        });
+    }
+
+    finishButton.addEventListener("click", finishCurrentSession);
+
+    renderLoadingState();
+    autoResizeInput(input);
+    if (scenarioInput) {
+        autoResizeInput(scenarioInput);
+    }
+    setVoiceState("Ready", "idle");
+    loadPracticeSession();
+
+    window.addEventListener("beforeunload", function () {
+        if (timerId) {
+            window.clearInterval(timerId);
+        }
+        stopSpeaking();
+    });
 });

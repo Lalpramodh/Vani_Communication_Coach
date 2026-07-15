@@ -206,7 +206,12 @@ def api_report():
 def api_practice_session():
     try:
         restart = str(request.args.get("restart", "")).lower() in {"1", "true", "yes"}
-        practice_session = get_or_start_session(session["user_id"], request.args.get("mode"), restart=restart)
+        practice_session = get_or_start_session(
+            session["user_id"],
+            request.args.get("mode"),
+            restart=restart,
+            scenario_text=request.args.get("scenario"),
+        )
         return jsonify({"session": practice_session})
     except Exception:
         app.logger.exception("Failed to load practice session")
@@ -240,6 +245,11 @@ def api_practice_finish():
     return jsonify({"ok": True, "sessionId": saved_session["id"], "session": saved_session})
 
 
-if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000, debug=False)
+import os
 
+if __name__ == "__main__":
+    app.run(
+        host="0.0.0.0",
+        port=int(os.environ.get("PORT", 5000)),
+        debug=False,
+    )

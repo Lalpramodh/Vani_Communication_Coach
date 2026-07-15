@@ -1,58 +1,94 @@
 (function () {
     const MODE_LIBRARY = [
         {
+            id: "hr-interview",
+            title: "HR Interview",
+            tag: "Hiring conversation",
+            difficulty: "Intermediate",
+            duration: "12 min",
+            icon: "fa-solid fa-briefcase",
+            scenario: "You are preparing for a calm, structured HR interview where the interviewer is checking confidence, clarity, and fit.",
+            description: "Practice introducing yourself, answering behavioral questions, and sounding polished under pressure.",
+            objective: "Answer directly, add one concrete example, and finish each response with a confident close.",
+            coachTip: "Lead with the answer, support it with one example, and end with a clear takeaway.",
+            assistantRole: "HR interviewer",
+            openingLine: "Hi, I’m glad you could make it. Let’s begin with a simple one: tell me about yourself and why this role interests you.",
+            isOpenEnded: true
+        },
+        {
+            id: "technical-interview",
+            title: "Technical Interview",
+            tag: "Problem solving",
+            difficulty: "Advanced",
+            duration: "14 min",
+            icon: "fa-solid fa-code",
+            scenario: "You are in a technical interview where the interviewer is testing depth, reasoning, and how clearly you explain complex ideas.",
+            description: "Practice explaining technical choices in plain language without sounding vague or defensive.",
+            objective: "Show your thinking, make tradeoffs explicit, and communicate a solution with confidence.",
+            coachTip: "Explain the reasoning, name the tradeoff, then state the decision clearly.",
+            assistantRole: "technical interviewer",
+            openingLine: "Let’s start with a classic interview prompt. Walk me through a technical project you’re proud of and the choices you made.",
+            isOpenEnded: true
+        },
+        {
+            id: "manager-discussion",
+            title: "Manager Discussion",
+            tag: "Stakeholder alignment",
+            difficulty: "Intermediate",
+            duration: "11 min",
+            icon: "fa-solid fa-user-tie",
+            scenario: "You are speaking with your manager about priorities, performance, and how to handle a real workplace situation.",
+            description: "Practice sounding organized, honest, and decisive when the stakes are practical and direct.",
+            objective: "State the issue clearly, explain the impact, and agree on one next step.",
+            coachTip: "Be direct, add one concrete example, and close with a clear ask.",
+            assistantRole: "manager",
+            openingLine: "Thanks for making time. What do you need from me today, and what outcome are you hoping for?",
+            isOpenEnded: true
+        },
+        {
+            id: "client-meeting",
+            title: "Client Meeting",
+            tag: "Customer trust",
+            difficulty: "Advanced",
+            duration: "13 min",
+            icon: "fa-solid fa-handshake-angle",
+            scenario: "You are in a client meeting where the other side wants progress, reassurance, and a clear next step.",
+            description: "Practice sounding commercially sharp while still warm, responsive, and trustworthy.",
+            objective: "Frame the issue in the client's language, answer concerns clearly, and move the conversation forward.",
+            coachTip: "Name the client pain, translate it into outcomes, then invite the next step.",
+            assistantRole: "client",
+            openingLine: "Good to see you. We need a clear update today, so please walk me through what changed and what it means for us.",
+            isOpenEnded: true
+        },
+        {
             id: "leadership-standup",
             title: "Leadership Standup",
             tag: "Executive presence",
             difficulty: "Advanced",
             duration: "12 min",
             icon: "fa-solid fa-people-group",
-            scenario: "Deliver a concise leadership update that sounds calm, decisive, and outcome-first.",
+            scenario: "You are presenting a concise leadership update that sounds calm, decisive, and outcome-first.",
             description: "Practice high-visibility updates that keep the room aligned without sounding overly detailed.",
             objective: "Lead with the business outcome, support it with one decision, and close with certainty.",
             coachTip: "Lead with the business outcome, then the decision, then the next step.",
-            questions: [
-                "Give a short leadership update on a project you own and start with why it matters.",
-                "Describe a blocker or tradeoff you handled while keeping stakeholders aligned.",
-                "Explain one decision you made and how you communicated it with confidence.",
-                "Close with the single next step you want the room to remember."
-            ]
+            assistantRole: "senior manager",
+            openingLine: "Let’s hear the update. Start with the outcome first, then tell me what changed and what you need from the room.",
+            isOpenEnded: true
         },
         {
-            id: "interview-sprint",
-            title: "Interview Sprint",
-            tag: "Structured answers",
+            id: "team-meeting",
+            title: "Team Meeting",
+            tag: "Collaborative clarity",
             difficulty: "Intermediate",
             duration: "10 min",
-            icon: "fa-solid fa-briefcase",
-            scenario: "Answer hiring-panel questions with structure, confidence, and clean delivery.",
-            description: "Sharpen short, high-pressure answers that stay clear and persuasive.",
-            objective: "Answer directly, support with one clear example, and land the impact quickly.",
-            coachTip: "Start with the situation, state your action, then land the impact quickly.",
-            questions: [
-                "Tell me about yourself in a way that sounds relevant and memorable.",
-                "Describe a time you handled conflicting priorities without losing momentum.",
-                "How do you communicate difficult tradeoffs to leadership or teammates?",
-                "End with the communication habit that makes you especially effective."
-            ]
-        },
-        {
-            id: "client-pitch",
-            title: "Client Pitch",
-            tag: "Persuasive clarity",
-            difficulty: "Advanced",
-            duration: "14 min",
-            icon: "fa-solid fa-handshake-angle",
-            scenario: "Pitch a solution to a client who needs confidence, clarity, and a crisp next step.",
-            description: "Practice sounding commercially sharp without losing warmth or trust.",
-            objective: "Frame the problem in the client's language, connect it to outcomes, and ask for the next step clearly.",
-            coachTip: "Name the customer pain, translate it into outcomes, then invite the next step.",
-            questions: [
-                "Open by framing the client's problem in their language.",
-                "Explain why your solution is a fit without sounding generic.",
-                "Handle a concern about cost, complexity, or implementation risk.",
-                "Close with a helpful but confident next step."
-            ]
+            icon: "fa-solid fa-people-arrows",
+            scenario: "You are in a team meeting where you need to contribute clearly, listen well, and keep the group moving.",
+            description: "Practice sounding collaborative without rambling or hiding the point.",
+            objective: "Share your update, ask a useful follow-up, and keep the discussion organized.",
+            coachTip: "Be concise, reference the team's goal, and add one helpful next step.",
+            assistantRole: "teammate",
+            openingLine: "Before we dive in, give me your update and mention anything the team should know right away.",
+            isOpenEnded: true
         },
         {
             id: "difficult-conversation",
@@ -61,44 +97,89 @@
             difficulty: "Advanced",
             duration: "11 min",
             icon: "fa-solid fa-shield-heart",
-            scenario: "Balance empathy and directness in a sensitive conversation where trust matters.",
+            scenario: "You are balancing empathy and directness in a sensitive conversation where trust matters.",
             description: "Practice naming the issue clearly while still sounding respectful and constructive.",
             objective: "Acknowledge the relationship, name the issue clearly, and align on one next action.",
             coachTip: "Acknowledge the relationship, name the issue clearly, then move to one next action.",
-            questions: [
-                "Start the conversation in a way that feels respectful and steady.",
-                "How would you name the issue without sounding vague or harsh?",
-                "How do you keep the other person engaged instead of defensive?",
-                "End with one clear next step you can both agree on."
-            ]
+            assistantRole: "the other person",
+            openingLine: "This sounds important. Tell me what happened, and I’ll respond like the other person in the conversation.",
+            isOpenEnded: true
         },
         {
-            id: "friendly-chat",
-            title: "Friendly Chat",
+            id: "networking",
+            title: "Networking",
+            tag: "Relationship building",
+            difficulty: "Intermediate",
+            duration: "9 min",
+            icon: "fa-solid fa-user-group",
+            scenario: "You are meeting someone new at a networking event and want to sound natural, curious, and memorable.",
+            description: "Practice opening a conversation, asking better follow-ups, and leaving a strong impression.",
+            objective: "Sound warm, ask useful questions, and keep the exchange easy to follow.",
+            coachTip: "Open naturally, show real curiosity, and end with a clear next step.",
+            assistantRole: "new contact",
+            openingLine: "Nice to meet you. What brought you here today, and what are you hoping to get out of this conversation?",
+            isOpenEnded: true
+        },
+        {
+            id: "presentation-practice",
+            title: "Presentation Practice",
+            tag: "Public speaking",
+            difficulty: "Advanced",
+            duration: "15 min",
+            icon: "fa-solid fa-chalkboard-user",
+            scenario: "You are giving a presentation to an audience that wants clarity, confidence, and a clean structure.",
+            description: "Practice sounding clear, calm, and persuasive in front of a room.",
+            objective: "Open with the point, build it logically, and finish with a memorable close.",
+            coachTip: "Tell the audience what matters first, then support it with one clean proof point.",
+            assistantRole: "audience member",
+            openingLine: "Whenever you’re ready, give me the opening of your presentation and I’ll respond like a real audience member.",
+            isOpenEnded: true
+        },
+        {
+            id: "sales-pitch",
+            title: "Sales Pitch",
+            tag: "Persuasive clarity",
+            difficulty: "Advanced",
+            duration: "14 min",
+            icon: "fa-solid fa-bullhorn",
+            scenario: "You are pitching an idea or product to a skeptical buyer who wants relevance, value, and a clear next step.",
+            description: "Practice sounding persuasive without sounding pushy or generic.",
+            objective: "Frame the problem, prove the value, and ask for the next step confidently.",
+            coachTip: "Name the pain, show the payoff, then invite the decision.",
+            assistantRole: "skeptical buyer",
+            openingLine: "I’m listening. Start with the problem you’re solving and why I should care.",
+            isOpenEnded: true
+        },
+        {
+            id: "friendly-conversation",
+            title: "Friendly Conversation",
             tag: "Warm connection",
             difficulty: "Open-ended",
             duration: "Flexible",
             icon: "fa-solid fa-comments",
-            scenario: "Have a natural back-and-forth conversation that helps you sound warm, clear, and confident in everyday communication.",
+            scenario: "You are having a natural back-and-forth conversation that helps you sound warm, clear, and confident in everyday communication.",
             description: "Practice relaxed conversation that builds fluency, listening, and social confidence without a fixed question limit.",
             objective: "Keep the conversation natural, respond with warmth, and ask or answer follow-ups with clear, easy flow.",
             coachTip: "Stay present, answer directly, add one detail, and keep the exchange moving naturally.",
+            assistantRole: "friendly conversation partner",
             openingLine: "Let's start a friendly chat. Tell me something small about your day, your interests, or what's on your mind, and I'll help you sound warm, clear, and natural as we go.",
-            stopPhrase: "ok stop the chat",
-            stopPhrases: [
-                "ok stop the chat",
-                "okay stop the chat",
-                "stop the chat",
-                "wrap up the chat",
-                "wrap up this chat"
-            ],
-            isOpenEnded: true,
-            questions: [
-                "Tell me something simple about your day or week and keep it natural.",
-                "Share a hobby, habit, or interest in a way that sounds easy and engaging.",
-                "Talk about a recent experience and add one detail that makes it memorable.",
-                "Ask a friendly follow-up or keep the conversation moving with curiosity."
-            ]
+            isOpenEnded: true
+        },
+        {
+            id: "custom-scenario",
+            title: "Create Your Own Scenario",
+            tag: "Adaptive roleplay",
+            difficulty: "Flexible",
+            duration: "Flexible",
+            icon: "fa-solid fa-wand-magic-sparkles",
+            scenario: "Describe or speak any real situation. The coach will infer the most likely role, keep the other side in character, and adapt the conversation dynamically.",
+            description: "Turn any work or life situation into an interactive voice roleplay without needing a preset question list.",
+            objective: "Describe the situation clearly, then practice it as a natural roleplay with follow-up questions.",
+            coachTip: "Explain the situation in one or two sentences so the roleplay can adapt in real time.",
+            assistantRole: "adaptive roleplay partner",
+            openingLine: "Tell me the situation you want to practice, and I’ll take the other side in character.",
+            isCustomScenario: true,
+            isOpenEnded: true
         }
     ];
 
@@ -137,9 +218,12 @@
         grammar: "interview-sprint",
         vocabulary: "client-pitch",
         confidence: "leadership-standup",
-        clarity: "interview-sprint",
-        professionalism: "client-pitch"
+        clarity: "technical-interview",
+        professionalism: "client-meeting",
+        vocabulary: "networking"
     };
+
+    const THEME_STORAGE_KEY = "vani-theme";
 
     function clamp(value, min, max) {
         return Math.min(Math.max(value, min), max);
@@ -342,6 +426,33 @@
             return "is-negative";
         }
         return "is-neutral";
+    }
+
+    function applyTheme(theme) {
+        const selectedTheme = theme === "dark" ? "dark" : "light";
+        document.body.setAttribute("data-theme", selectedTheme);
+        window.localStorage.setItem(THEME_STORAGE_KEY, selectedTheme);
+
+        document.querySelectorAll("[data-theme-toggle]").forEach(function (button) {
+            const label = button.querySelector("[data-theme-label]");
+            if (label) {
+                label.textContent = selectedTheme === "dark" ? "Light mode" : "Dark mode";
+            }
+            button.setAttribute("aria-pressed", selectedTheme === "dark" ? "true" : "false");
+        });
+    }
+
+    function initTheme() {
+        const savedTheme = window.localStorage.getItem(THEME_STORAGE_KEY);
+        const preferredTheme = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+        applyTheme(savedTheme || preferredTheme);
+
+        document.querySelectorAll("[data-theme-toggle]").forEach(function (button) {
+            button.addEventListener("click", function () {
+                const nextTheme = document.body.getAttribute("data-theme") === "dark" ? "light" : "dark";
+                applyTheme(nextTheme);
+            });
+        });
     }
 
     function setStatus(target, message, tone) {
@@ -677,6 +788,7 @@
 
     document.addEventListener("DOMContentLoaded", function () {
         applyUserProfile();
+        initTheme();
         initSidebar();
         initReveal();
     });
@@ -703,6 +815,7 @@
         communicationLevel: communicationLevel,
         metricLabel: metricLabel,
         renderEmptyState: renderEmptyState,
+        applyTheme: applyTheme,
         sanitizeText: sanitizeText,
         scoreDeltaClass: scoreDeltaClass,
         setButtonLoading: setButtonLoading,
@@ -710,6 +823,7 @@
         setProgress: setProgress,
         setScoreRing: setScoreRing,
         setStatus: setStatus,
+        initTheme: initTheme,
         showToast: showToast
     };
 })();

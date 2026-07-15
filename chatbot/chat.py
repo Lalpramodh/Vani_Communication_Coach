@@ -9,7 +9,7 @@ from chatbot.prompts import build_chat_system_prompt
 from communication.evaluator import evaluate_conversation
 from communication.feedback import build_fallback_reply
 from communication.scoring import build_coach_tip, score_answer, weakest_metric
-from config import DEFAULT_MODE_ID, PRACTICE_MODE_MAP
+from config import CUSTOM_SCENARIO_ID, DEFAULT_MODE_ID, MODE_ALIASES, PRACTICE_MODE_MAP
 from database.queries import store_completed_session, store_message
 from rag.vector_store import retrieve_relevant_chunks
 
@@ -17,18 +17,106 @@ _ACTIVE_SESSIONS = {}
 _LOCK = threading.Lock()
 
 
-def _mode_for(mode_id):
-    return PRACTICE_MODE_MAP.get(mode_id) or PRACTICE_MODE_MAP[DEFAULT_MODE_ID]
+def _mode_for(mode_id, scenario_text=None):
+    resolved_id = MODE_ALIASES.get(mode_id, mode_id)
+    mode = copy.deepcopy(PRACTICE_MODE_MAP.get(resolved_id) or PRACTICE_MODE_MAP[DEFAULT_MODE_ID])
+
+    if mode["id"] == CUSTOM_SCENARIO_ID:
+        scenario = str(scenario_text or "").strip()
+        if scenario:
+            inferred = _infer_custom_role(scenario)
+            mode["scenario"] = scenario
+            mode["assistantRole"] = inferred["assistantRole"]
+            mode["userRole"] = inferred["userRole"]
+            mode["openingLine"] = inferred["openingLine"]
+            mode["challengeStyle"] = inferred["challengeStyle"]
+            mode["evaluationFocus"] = inferred["evaluationFocus"]
+            mode["inferredRole"] = inferred["inferredRole"]
+
+    return mode
+
+
+def _infer_custom_role(scenario_text):
+    text = _normalize_control_text(scenario_text)
+
+    candidates = [
+        (
+            ("salary", "negotiate", "raise", "compensation"),
+            {
+                "assistantRole": "manager",
+                "userRole": "employee",
+                "openingLine": "Tell me what you want to discuss, and I’ll respond like your manager would in the meeting.",
+                "challengeStyle": "Push for clarity, impact, and a concrete ask.",
+                "evaluationFocus": "negotiation",
+                "inferredRole": "manager conversation",
+            },
+        ),
+        (
+            ("interview", "job", "hiring", "recruiter", "application"),
+            {
+                "assistantRole": "interviewer",
+                "userRole": "candidate",
+                "openingLine": "Let’s roleplay the interview. Start with your first answer and I’ll respond like the interviewer.",
+                "challengeStyle": "Ask follow-up questions that probe structure, confidence, and fit.",
+                "evaluationFocus": "interview readiness",
+                "inferredRole": "interview",
+            },
+        ),
+        (
+            ("client", "customer", "presentation", "proposal", "meeting"),
+            {
+                "assistantRole": "client",
+                "userRole": "account lead",
+                "openingLine": "Walk me through the situation, and I’ll respond like the client in the room.",
+                "challengeStyle": "Be commercially realistic, skeptical, and detail-oriented.",
+                "evaluationFocus": "client communication",
+                "inferredRole": "client roleplay",
+            },
+        ),
+        (
+            ("manager", "boss", "lead", "approval", "leave", "project"),
+            {
+                "assistantRole": "manager",
+                "userRole": "team member",
+                "openingLine": "Tell me what you want to say, and I’ll play the manager side of the conversation.",
+                "challengeStyle": "Keep it practical and ask for a direct, respectful ask.",
+                "evaluationFocus": "manager communication",
+                "inferredRole": "manager discussion",
+            },
+        ),
+        (
+            ("difficulty", "difficult conversation", "conflict", "issue", "feedback"),
+            {
+                "assistantRole": "the other person",
+                "userRole": "conversation lead",
+                "openingLine": "Go ahead and set up the conversation. I’ll respond like the other person involved.",
+                "challengeStyle": "Stay realistic, slightly guarded, and emotionally believable.",
+                "evaluationFocus": "difficult conversations",
+                "inferredRole": "difficult conversation",
+            },
+        ),
+    ]
+
+    for keywords, payload in candidates:
+        if any(keyword in text for keyword in keywords):
+            return payload
+
+    return {
+        "assistantRole": "adaptive roleplay partner",
+        "userRole": "scenario owner",
+        "openingLine": "Tell me the situation you want to practice, and I’ll stay in character with the other side of it.",
+        "challengeStyle": "Infer the most likely role from the user's description and keep the exchange natural.",
+        "evaluationFocus": "custom roleplay",
+        "inferredRole": "adaptive scenario",
+    }
 
 
 def _is_open_ended_mode(mode):
-    return bool(mode.get("isOpenEnded"))
+    return True
 
 
 def _session_complete(state, mode):
-    if _is_open_ended_mode(mode):
-        return bool(state.get("wrappedUp"))
-    return state["turnIndex"] >= len(mode["questions"])
+    return bool(state.get("wrappedUp"))
 
 
 def _opening_message(mode):
@@ -36,10 +124,7 @@ def _opening_message(mode):
     if opening_line:
         return opening_line
 
-    questions = mode.get("questions") or []
-    if questions:
-        return f"Let's begin. {questions[0]}"
-    return "Let's begin."
+    return f"Let's begin the {mode['title'].lower()} roleplay."
 
 
 def _normalize_control_text(value):
@@ -47,11 +132,14 @@ def _normalize_control_text(value):
 
 
 def _stop_requested(mode, message):
-    if not _is_open_ended_mode(mode):
-        return False
-
     normalized_message = _normalize_control_text(message)
-    phrases = [mode.get("stopPhrase")] + list(mode.get("stopPhrases") or [])
+    phrases = [
+        mode.get("stopPhrase"),
+        "finish session",
+        "end session",
+        "wrap up",
+        "stop roleplay",
+    ] + list(mode.get("stopPhrases") or [])
 
     for phrase in phrases:
         normalized_phrase = _normalize_control_text(phrase)
@@ -62,24 +150,10 @@ def _stop_requested(mode, message):
 
 
 def _current_prompt(mode, state):
-    if _is_open_ended_mode(mode):
-        for entry in reversed(state.get("transcript") or []):
-            if entry.get("role") == "assistant":
-                return str(entry.get("content") or "").strip()
-        return (mode.get("questions") or [mode.get("scenario") or "Start the conversation."])[0]
-
-    return mode["questions"][state["turnIndex"]]
-
-
-def _next_direction(mode, state):
-    questions = mode.get("questions") or []
-
-    if _is_open_ended_mode(mode):
-        if questions:
-            return questions[state["turnIndex"] % len(questions)]
-        return None
-
-    return questions[state["turnIndex"]] if state["turnIndex"] < len(questions) else None
+    for entry in reversed(state.get("transcript") or []):
+        if entry.get("role") == "assistant":
+            return str(entry.get("content") or "").strip()
+    return str(mode.get("openingLine") or mode.get("scenario") or "Start the roleplay.").strip()
 
 
 def _now_iso():
@@ -96,12 +170,13 @@ def _initial_scores():
     }
 
 
-def _create_state(mode_id):
-    mode = _mode_for(mode_id)
+def _create_state(mode_id, scenario_text=None):
+    mode = _mode_for(mode_id, scenario_text=scenario_text)
     created_at = _now_iso()
     return {
         "id": str(uuid.uuid4()),
         "modeId": mode["id"],
+        "mode": mode,
         "startedAt": created_at,
         "turnIndex": 0,
         "wrappedUp": False,
@@ -118,13 +193,18 @@ def _create_state(mode_id):
     }
 
 
-def get_or_start_session(user_id, mode_id=None, restart=False):
+def get_or_start_session(user_id, mode_id=None, restart=False, scenario_text=None):
     first_message = None
     with _LOCK:
         current = _ACTIVE_SESSIONS.get(user_id)
         requested_mode = mode_id or (current or {}).get("modeId") or DEFAULT_MODE_ID
-        if restart or not current or current.get("modeId") != requested_mode:
-            current = _create_state(requested_mode)
+        resolved_mode_id = MODE_ALIASES.get(requested_mode, requested_mode)
+        if restart or not current or current.get("modeId") != resolved_mode_id:
+            current = _create_state(requested_mode, scenario_text=scenario_text)
+            _ACTIVE_SESSIONS[user_id] = current
+            first_message = current["transcript"][0]
+        elif resolved_mode_id == CUSTOM_SCENARIO_ID and scenario_text and current.get("mode", {}).get("scenario") != scenario_text:
+            current = _create_state(requested_mode, scenario_text=scenario_text)
             _ACTIVE_SESSIONS[user_id] = current
             first_message = current["transcript"][0]
         response_state = copy.deepcopy(current)
@@ -165,7 +245,7 @@ def process_user_message(user_id, user_message):
             _ACTIVE_SESSIONS[user_id] = state
             initial_message = state["transcript"][0]
 
-        mode = _mode_for(state["modeId"])
+        mode = state.get("mode") or _mode_for(state["modeId"])
         if _session_complete(state, mode):
             raise ValueError("This session is already complete.")
 
@@ -174,13 +254,13 @@ def process_user_message(user_id, user_message):
         should_wrap_up = stop_requested and not needs_first_reply
         created_at = _now_iso()
         scores = dict(state["latestScores"])
+        current_prompt = _current_prompt(mode, state)
 
         if not should_wrap_up and not needs_first_reply:
-            current_question = _current_prompt(mode, state)
-            scores = score_answer(message, question=current_question, mode=mode)
+            scores = score_answer(message, question=current_prompt, mode=mode)
             state["answers"].append(
                 {
-                    "question": current_question,
+                    "question": current_prompt,
                     "answer": message,
                     "scores": scores,
                 }
@@ -194,9 +274,8 @@ def process_user_message(user_id, user_message):
 
         if should_wrap_up:
             state["wrappedUp"] = True
-            next_question = None
         else:
-            next_question = _next_direction(mode, state)
+            next_question = current_prompt
 
         transcript_for_model = copy.deepcopy(state["transcript"])
 
@@ -210,7 +289,15 @@ def process_user_message(user_id, user_message):
             "then say 'ok stop the chat' whenever you want to finish."
         )
     else:
-        retrieved_chunks = retrieve_relevant_chunks(message)
+        retrieval_query = " ".join(
+            [
+                message,
+                str(mode.get("title") or ""),
+                str(mode.get("scenario") or ""),
+                str(mode.get("assistantRole") or ""),
+            ]
+        ).strip()
+        retrieved_chunks = retrieve_relevant_chunks(retrieval_query)
 
         try:
             assistant_reply = generate_response(
@@ -237,6 +324,7 @@ def process_user_message(user_id, user_message):
         if not current_state or current_state["id"] != session_id:
             raise ValueError("This practice session changed. Please refresh and try again.")
 
+        current_state["mode"] = mode
         current_state["transcript"].append(
             {
                 "role": "assistant",
@@ -261,7 +349,7 @@ def finish_session(user_id):
             raise ValueError("Answer at least one prompt before finishing.")
 
         session_id = state["id"]
-        mode = _mode_for(state["modeId"])
+        mode = state.get("mode") or _mode_for(state["modeId"])
         answers = copy.deepcopy(state["answers"])
         transcript = copy.deepcopy(state["transcript"])
         started_at = datetime.fromisoformat(state["startedAt"].replace("Z", "+00:00"))

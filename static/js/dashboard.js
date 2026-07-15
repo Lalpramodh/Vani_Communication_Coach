@@ -67,11 +67,12 @@ document.addEventListener("DOMContentLoaded", function () {
 
         modesContainer.innerHTML = app.MODE_LIBRARY.map(function (mode) {
             const isRecommended = recommendation && mode.id === recommendation.modeId;
+            const isCustom = Boolean(mode.isCustomScenario);
             return [
-                '<article class="mode-card' + (isRecommended ? " is-recommended" : "") + '">',
+                '<article class="mode-card' + (isRecommended ? " is-recommended" : "") + (isCustom ? " is-custom" : "") + '">',
                 '<div class="mode-card__top">',
                 '<div class="mode-card__icon"><i class="' + app.sanitizeText(mode.icon) + '"></i></div>',
-                '<span class="card-tag">' + app.sanitizeText(mode.tag) + "</span>",
+                '<span class="card-tag">' + app.sanitizeText(isCustom ? "Custom roleplay" : mode.tag) + "</span>",
                 "</div>",
                 "<div>",
                 "<h3>" + app.sanitizeText(mode.title) + "</h3>",
@@ -83,7 +84,7 @@ document.addEventListener("DOMContentLoaded", function () {
                 "</div>",
                 '<div class="mode-card__footer">',
                 '<p class="micro-copy">' + app.sanitizeText(mode.objective) + "</p>",
-                '<button class="button button--primary button--full" type="button" data-start-mode="' + app.sanitizeText(mode.id) + '">Start</button>',
+                '<button class="button button--primary button--full" type="button" data-start-mode="' + app.sanitizeText(mode.id) + '">' + (isCustom ? "Create scenario" : "Start") + "</button>",
                 "</div>",
                 "</article>"
             ].join("");

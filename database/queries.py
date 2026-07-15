@@ -8,6 +8,7 @@ from config import (
     DEFAULT_COMMUNICATION_GOAL,
     DEFAULT_EXPERIENCE_LEVEL,
     DEFAULT_MODE_ID,
+    MODE_ALIASES,
     PRACTICE_MODE_MAP,
 )
 from database.supabase import create_public_client, get_service_client
@@ -16,7 +17,8 @@ _MESSAGES_TABLE_AVAILABLE = None
 
 
 def _mode_for(mode_id):
-    return PRACTICE_MODE_MAP.get(mode_id) or PRACTICE_MODE_MAP[DEFAULT_MODE_ID]
+    resolved_id = MODE_ALIASES.get(mode_id, mode_id)
+    return PRACTICE_MODE_MAP.get(resolved_id) or PRACTICE_MODE_MAP[DEFAULT_MODE_ID]
 
 
 def _humanize_name_from_email(email):

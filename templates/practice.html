@@ -64,6 +64,10 @@
                         <i class="fa-regular fa-user"></i>
                         <span>Profile</span>
                     </button>
+                    <button class="sidebar-action" type="button" data-theme-toggle aria-pressed="false">
+                        <i class="fa-solid fa-circle-half-stroke"></i>
+                        <span data-theme-label>Dark mode</span>
+                    </button>
                     <a class="sidebar-action" href="/logout">
                         <i class="fa-solid fa-arrow-right-from-bracket"></i>
                         <span>Logout</span>
@@ -78,14 +82,14 @@
                     <span class="page-kicker">Practice session</span>
                     <h1 id="practiceTitle">Leadership Standup</h1>
                     <p id="practiceScenario">
-                        Practice one focused communication scenario, respond in your own words, and finish when you are ready for a fresh report.
+                        Practice a live roleplay scenario, speak naturally, and let the coach respond like a real person.
                     </p>
                 </div>
 
                 <div class="page-header__actions page-header__actions--session">
                     <div class="status-pill">
                         <i class="fa-solid fa-list-ol"></i>
-                        <span id="practiceQuestionCounter">Question 1 of 4</span>
+                        <span id="practiceQuestionCounter">Voice turn 1</span>
                     </div>
                     <div class="status-pill">
                         <i class="fa-solid fa-chart-line"></i>
@@ -95,11 +99,45 @@
                         <i class="fa-regular fa-clock"></i>
                         <span id="sessionTimer">00:00</span>
                     </div>
+                    <div class="status-pill status-pill--accent" id="practiceVoiceState">
+                        <i class="fa-solid fa-microphone-lines"></i>
+                        <span>Ready</span>
+                    </div>
                 </div>
             </header>
 
             <section class="practice-grid">
                 <article class="panel panel--conversation reveal">
+                    <div class="practice-start" id="customScenarioPanel" hidden>
+                        <div class="practice-start__copy">
+                            <span class="eyebrow-label">Create your own scenario</span>
+                            <h2>Describe the situation you want to practice</h2>
+                            <p>Type or speak a real situation. The coach will infer the other role and keep the conversation in character.</p>
+                        </div>
+                        <form class="practice-start__form" id="customScenarioForm" novalidate>
+                            <label class="field">
+                                <span class="field__label">Scenario</span>
+                                <textarea
+                                    class="field__control field__control--textarea"
+                                    id="scenarioPromptInput"
+                                    name="scenarioPrompt"
+                                    rows="4"
+                                    placeholder="I have an interview tomorrow and want to practice the conversation..."></textarea>
+                            </label>
+                            <div class="composer__toolbar">
+                                <button class="button button--ghost button--sm" id="scenarioVoiceButton" type="button">
+                                    <i class="fa-solid fa-microphone-lines"></i>
+                                    <span>Speak scenario</span>
+                                </button>
+                                <button class="button button--primary" id="startCustomScenarioButton" type="submit">
+                                    <i class="fa-solid fa-wand-magic-sparkles"></i>
+                                    <span>Start roleplay</span>
+                                </button>
+                            </div>
+                            <p class="form-message" id="customScenarioStatus" role="status" aria-live="polite"></p>
+                        </form>
+                    </div>
+
                     <div class="practice-stage">
                         <div class="practice-stage__copy">
                             <span class="eyebrow-label">Current coaching objective</span>
@@ -125,6 +163,16 @@
                             </div>
                             <div class="progress-bar">
                                 <div class="progress-bar__fill" id="practiceProgressFill"></div>
+                            </div>
+                        </div>
+
+                        <div class="voice-stage">
+                            <div class="voice-stage__label">
+                                <i class="fa-solid fa-wave-square"></i>
+                                <span>Live voice feedback</span>
+                            </div>
+                            <div class="voice-wave" id="practiceVoiceWave" aria-hidden="true">
+                                <span></span><span></span><span></span><span></span><span></span>
                             </div>
                         </div>
                     </div>
@@ -159,6 +207,25 @@
                                         <span>Send</span>
                                     </button>
                                 </div>
+                            </div>
+
+                            <div class="voice-controls">
+                                <button class="button button--ghost button--sm" id="pauseSpeechButton" type="button">
+                                    <i class="fa-solid fa-pause"></i>
+                                    <span>Pause</span>
+                                </button>
+                                <button class="button button--ghost button--sm" id="resumeSpeechButton" type="button">
+                                    <i class="fa-solid fa-play"></i>
+                                    <span>Resume</span>
+                                </button>
+                                <button class="button button--ghost button--sm" id="stopSpeechButton" type="button">
+                                    <i class="fa-solid fa-stop"></i>
+                                    <span>Stop</span>
+                                </button>
+                                <button class="button button--ghost button--sm" id="replaySpeechButton" type="button">
+                                    <i class="fa-solid fa-rotate-right"></i>
+                                    <span>Replay</span>
+                                </button>
                             </div>
 
                             <p class="form-message" id="practiceStatus" role="status" aria-live="polite"></p>
