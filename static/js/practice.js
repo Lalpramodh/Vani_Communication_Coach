@@ -1,6 +1,13 @@
 document.addEventListener("DOMContentLoaded", function () {
     const app = window.VaniApp;
     const METRIC_ORDER = ["clarity", "grammar", "confidence", "professionalism", "vocabulary"];
+    const METRIC_META = {
+        clarity: { icon: "fa-bullseye", label: "Clarity" },
+        grammar: { icon: "fa-spell-check", label: "Grammar" },
+        confidence: { icon: "fa-shield-halved", label: "Confidence" },
+        professionalism: { icon: "fa-briefcase", label: "Professionalism" },
+        vocabulary: { icon: "fa-book-open", label: "Vocabulary" }
+    };
     const SPEECH_RATE = 1;
     const SPEECH_PITCH = 1;
     const SPEECH_LANG = "en-US";
@@ -50,6 +57,13 @@ document.addEventListener("DOMContentLoaded", function () {
     let lastAssistantReply = "";
     let currentUtterance = null;
     let isSpeaking = false;
+    let previousMetricSnapshot = {
+        grammar: 50,
+        vocabulary: 50,
+        confidence: 50,
+        clarity: 50,
+        professionalism: 50
+    };
     let loadStarted = false;
 
     function getMode() {
@@ -145,7 +159,8 @@ document.addEventListener("DOMContentLoaded", function () {
         }
         currentUtterance = null;
         isSpeaking = false;
-        setVoiceState(isListening ? "Listening" : "Ready", isListening ? "listening" : "idle");
+        setVoiceState(isListening ? "Listening..." : "Ready", isListening ? "listening" : "idle");
+        renderConversation();
     }
 
     function speakText(text, shouldReplay) {
@@ -168,19 +183,22 @@ document.addEventListener("DOMContentLoaded", function () {
 
         utterance.onstart = function () {
             isSpeaking = true;
-            setVoiceState("Speaking", "speaking");
+            setVoiceState("Speaking...", "speaking");
+            renderConversation();
         };
 
         utterance.onend = function () {
             isSpeaking = false;
             currentUtterance = null;
-            setVoiceState(isListening ? "Listening" : "Ready", isListening ? "listening" : "idle");
+            setVoiceState(isListening ? "Listening..." : "Ready", isListening ? "listening" : "idle");
+            renderConversation();
         };
 
         utterance.onerror = function () {
             isSpeaking = false;
             currentUtterance = null;
-            setVoiceState(isListening ? "Listening" : "Ready", isListening ? "listening" : "idle");
+            setVoiceState(isListening ? "Listening..." : "Ready", isListening ? "listening" : "idle");
+            renderConversation();
         };
 
         window.speechSynthesis.speak(utterance);
@@ -197,7 +215,7 @@ document.addEventListener("DOMContentLoaded", function () {
             const label = voiceButton.querySelector("span");
             voiceButton.classList.toggle("is-active", isListening);
             if (label) {
-                label.textContent = isListening ? "Listening" : "Voice";
+                label.textContent = isListening ? "Listening..." : "Voice";
             }
         }
 
@@ -205,7 +223,7 @@ document.addEventListener("DOMContentLoaded", function () {
             const label = scenarioVoiceButton.querySelector("span");
             scenarioVoiceButton.classList.toggle("is-active", isListening && activeVoiceTarget === scenarioInput);
             if (label) {
-                label.textContent = isListening && activeVoiceTarget === scenarioInput ? "Listening" : "Speak scenario";
+                label.textContent = isListening && activeVoiceTarget === scenarioInput ? "Listening..." : "Speak scenario";
             }
         }
     }
@@ -240,7 +258,7 @@ document.addEventListener("DOMContentLoaded", function () {
                 activeVoiceTarget = null;
                 voiceSeed = "";
                 updateVoiceButtons();
-                setVoiceState(isSpeaking ? "Speaking" : "Ready", isSpeaking ? "speaking" : "idle");
+                setVoiceState(isSpeaking ? "Speaking..." : "Ready", isSpeaking ? "speaking" : "idle");
             };
 
             recognition.onerror = function (event) {
@@ -284,7 +302,7 @@ document.addEventListener("DOMContentLoaded", function () {
         voiceSeed = activeVoiceTarget.value.trim();
         isListening = true;
         updateVoiceButtons();
-        setVoiceState("Listening", "listening");
+        setVoiceState("Listening...", "listening");
 
         try {
             speechRecognition.start();
@@ -404,13 +422,14 @@ document.addEventListener("DOMContentLoaded", function () {
     function buildMessage(entry, options) {
         const settings = Object.assign({
             text: entry.content,
-            allowHtml: false
+            allowHtml: false,
+            className: ""
         }, options || {});
         const isCoach = entry.role !== "user";
         const safeText = settings.allowHtml ? settings.text : app.sanitizeText(settings.text);
 
         return [
-            '<article class="message message--' + (isCoach ? "coach" : "user") + '">',
+            '<article class="message message--' + (isCoach ? "coach" : "user") + settings.className + '">',
             '<div class="message__avatar"><i class="fa-solid ' + (isCoach ? "fa-sparkles" : "fa-user") + '"></i></div>',
             '<div class="message__bubble">',
             '<div class="message__meta"><strong>' + (isCoach ? "Vani Coach" : "You") + "</strong><span>" + app.sanitizeText(formatTimeLabel(entry.createdAt)) + "</span></div>",
@@ -421,6 +440,8 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     function renderConversation() {
+        conversation.classList.toggle("is-speaking", isSpeaking);
+
         if (!state) {
             conversation.innerHTML = [
                 '<div class="message message--coach">',
@@ -434,8 +455,11 @@ document.addEventListener("DOMContentLoaded", function () {
             return;
         }
 
-        const transcriptMarkup = state.transcript.map(function (entry) {
-            return buildMessage(entry);
+        const transcriptMarkup = state.transcript.map(function (entry, index) {
+            const isLastCoachMessage = isSpeaking && entry.role === "assistant" && index === state.transcript.length - 1;
+            return buildMessage(entry, {
+                className: isLastCoachMessage ? " is-speaking" : ""
+            });
         }).join("");
 
         let dynamicMarkup = "";
@@ -466,16 +490,27 @@ document.addEventListener("DOMContentLoaded", function () {
 
         metricsContainer.innerHTML = METRIC_ORDER.map(function (metric) {
             const value = state && state.answers.length ? (scores[metric] || 0) : 0;
+            const hasLiveData = Boolean(state && state.answers.length);
+            const previousValue = hasLiveData ? (previousMetricSnapshot[metric] || 0) : value;
+            const delta = hasLiveData ? (value - previousValue) : 0;
+            const meta = METRIC_META[metric] || { icon: "fa-chart-line", label: app.metricLabel(metric) };
+            const trendClass = delta > 0 ? "is-up" : delta < 0 ? "is-down" : "is-flat";
+            const trendLabel = hasLiveData ? (delta > 0 ? "+" + delta : delta < 0 ? String(delta) : "0") : "Live";
             return [
-                '<div class="live-metric">',
-                '<div class="live-metric__top">',
-                "<span>" + app.metricLabel(metric) + "</span>",
-                "<strong>" + value + "</strong>",
+                '<article class="skill-card ' + trendClass + '">',
+                '<div class="skill-card__top">',
+                '<div class="skill-card__icon"><i class="fa-solid ' + meta.icon + '"></i></div>',
+                '<span class="skill-card__trend">' + trendLabel + '</span>',
                 "</div>",
-                '<div class="live-metric__track">',
-                '<div class="live-metric__fill" data-score-fill="' + value + '"></div>',
+                '<div class="skill-card__score">',
+                "<strong>" + value + "%</strong>",
+                "<span>" + meta.label + "</span>",
                 "</div>",
-                "</div>"
+                '<div class="skill-card__meter">',
+                '<div class="skill-card__fill" data-score-fill="' + value + '"></div>',
+                "</div>",
+                '<p class="micro-copy">' + (!hasLiveData ? "Waiting for your first response" : delta > 0 ? "Improving this turn" : delta < 0 ? "Needs a sharper close" : "Stable for now") + "</p>",
+                "</article>"
             ].join("");
         }).join("");
 
@@ -546,6 +581,13 @@ document.addEventListener("DOMContentLoaded", function () {
     function prepareSession(session) {
         state = session;
         lastAssistantReply = "";
+        previousMetricSnapshot = {
+            grammar: 50,
+            vocabulary: 50,
+            confidence: 50,
+            clarity: 50,
+            professionalism: 50
+        };
         if (state && state.transcript && state.transcript.length) {
             const openingEntry = state.transcript[0];
             if (openingEntry && openingEntry.role === "assistant") {
@@ -741,6 +783,7 @@ document.addEventListener("DOMContentLoaded", function () {
             isTyping = false;
             input.value = "";
             autoResizeInput();
+            previousMetricSnapshot = state && state.latestScores ? Object.assign({}, state.latestScores) : previousMetricSnapshot;
             state = Object.assign({}, nextState);
             render();
 
